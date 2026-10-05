@@ -1,0 +1,26 @@
+{
+  "name": "rodium-crm-tabulaire",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "printf 'Lance npm run dev:backend et npm run dev:frontend dans deux terminaux.\\n'",
+    "dev:backend": "npm run start:dev --workspace @rodium/backend",
+    "dev:frontend": "npm run dev --workspace @rodium/frontend",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run typecheck",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:migrate": "printf 'Les migrations seront ajoutees avec le modele de donnees.\\n'",
+    "db:seed": "printf 'Le seed sera ajoute avec le modele de donnees.\\n'"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

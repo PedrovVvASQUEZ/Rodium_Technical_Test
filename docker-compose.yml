@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: rodium
+      POSTGRES_USER: rodium
+      POSTGRES_PASSWORD: rodium_dev_only
+    ports:
+      - "5432:5432"
+    volumes:
+      - rodium_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rodium -d rodium"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  rodium_postgres_data:
