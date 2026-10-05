@@ -118,7 +118,6 @@ Les repositories PostgreSQL implementent les ports applicatifs. Les regles de va
 - le compose Docker ne fournit pas de services backend ou frontend;
 - le PDF du sujet est disponible localement mais n'est pas versionne;
 - le tri et le filtre ne disposent pas encore de controles dans l'interface;
-- la configuration frontend documentee dans `.env.example` ne correspond pas au nom lu par le client;
 - aucune configuration de production, authentification ou gestion de comptes n'est presente dans le code verifie;
 - la virtualisation et le drag-and-drop avance ne sont pas implementes.
 
