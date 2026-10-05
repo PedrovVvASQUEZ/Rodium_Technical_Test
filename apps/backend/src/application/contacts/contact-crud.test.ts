@@ -14,7 +14,7 @@ const columns: readonly Column[] = [
 const repository = () => ({
   findMany: vi.fn(),
   create: vi.fn().mockResolvedValue({ id: 'contact', values: {} }),
-  updateValue: vi.fn(),
+  updateValue: vi.fn().mockResolvedValue({ id: 'contact', values: {} }),
   deleteById: vi.fn(),
 });
 
@@ -32,7 +32,7 @@ describe('contact CRUD use cases', () => {
     const repo = repository();
     const update = new UpdateContactValue(repo, columns);
     const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
-    await update.execute({ contactId: id, columnId: 'name', value: null });
+    await expect(update.execute({ contactId: id, columnId: 'name', value: null })).resolves.toEqual({ id: 'contact', values: {} });
     expect(repo.updateValue).toHaveBeenCalledWith(id, 'name', null);
     expect(() => update.execute({ contactId: 'bad', columnId: 'name', value: null })).toThrow(InvalidContactInputError);
     expect(() => update.execute({ contactId: id, columnId: 'joined', value: { type: 'date', value: '2024-99-99' } })).toThrow(InvalidContactInputError);

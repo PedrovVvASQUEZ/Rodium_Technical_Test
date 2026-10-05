@@ -126,8 +126,12 @@ describe('PostgreSQL repositories', () => {
       [byType('date'), { type: 'date', value: '2025-02-03' }],
       [byType('phone'), { type: 'phone', value: '+33123456789' }],
     ] as const;
-    for (const [columnId, value] of updates) await contacts.updateValue(created.id, columnId, value);
-    await contacts.updateValue(created.id, byType('text'), null);
+    for (const [columnId, value] of updates) {
+      const updated = await contacts.updateValue(created.id, columnId, value);
+      expect(updated.values[columnId]).toEqual(value);
+    }
+    const cleared = await contacts.updateValue(created.id, byType('text'), null);
+    expect(cleared.values[byType('text')]).toBeUndefined();
     const result = await contacts.findMany({ page: 1, pageSize: 10, sortDirection: 'asc' });
     const updated = result.items.find((item) => item.id === created.id)!;
     expect(updated.values[byType('text')]).toBeUndefined();

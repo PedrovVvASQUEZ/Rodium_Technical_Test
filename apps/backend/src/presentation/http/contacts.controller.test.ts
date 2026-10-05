@@ -35,7 +35,7 @@ describe('ContactsController', () => {
 
   it('adapts create, update and delete requests', async () => {
     const create = vi.fn().mockResolvedValue({ id: 'contact', values: {} });
-    const update = vi.fn().mockResolvedValue(undefined);
+    const update = vi.fn().mockResolvedValue({ id: 'id', values: { name: { type: 'text', value: 'Ada' } } });
     const remove = vi.fn().mockResolvedValue(undefined);
     const controller = new ContactsController(
       { execute: vi.fn() } as never,
@@ -45,7 +45,9 @@ describe('ContactsController', () => {
     );
 
     await expect(controller.create({ values: {} })).resolves.toEqual({ id: 'contact', values: {} });
-    await controller.update('id', { columnId: 'name', value: null });
+    await expect(controller.update('id', { columnId: 'name', value: null })).resolves.toEqual({
+      id: 'id', values: { name: { type: 'text', value: 'Ada' } },
+    });
     await controller.delete('id');
     expect(create).toHaveBeenCalledWith({ values: {} });
     expect(update).toHaveBeenCalledWith({ contactId: 'id', columnId: 'name', value: null });
