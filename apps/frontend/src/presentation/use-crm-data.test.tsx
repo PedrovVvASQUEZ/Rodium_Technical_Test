@@ -1,11 +1,11 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { crmService } from '../application/load-crm';
 import { useCrmData } from './use-crm-data';
 
 function Probe() {
   const data = useCrmData();
-  return <><output data-testid="status">{data.status}</output><output data-testid="count">{data.contacts.length}</output><output data-testid="error">{data.error?.message ?? ''}</output><div data-testid="sentinel" ref={data.sentinelRef} /></>;
+  return <><output data-testid="status">{data.status}</output><output data-testid="count">{data.contacts.length}</output><output data-testid="value">{String(data.contacts[0]?.values.name?.value ?? '')}</output><output data-testid="error">{data.error?.message ?? ''}</output><button onClick={() => void data.updateContactValue('1', 'name', 'Grace').catch(() => undefined)}>update</button><div data-testid="sentinel" ref={data.sentinelRef} /></>;
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -69,5 +69,34 @@ describe('useCrmData', () => {
     expect(screen.getByTestId('status').textContent).toBe('ready');
     expect(screen.getByTestId('error').textContent).toBe('');
     expect(loadContacts).toHaveBeenCalledTimes(2);
+  });
+
+  it('remplace la ligne par la reponse serveur', async () => {
+    vi.spyOn(crmService, 'loadFirstPage').mockResolvedValue({ columns: [{ id: 'name', label: 'Nom', type: 'text' }], contacts: { items: [{ id: '1', values: { name: { type: 'text', value: 'Ada' } } }], page: 1, pageSize: 1, total: 1, totalPages: 1 } });
+    const update = vi.spyOn(crmService, 'updateContactValue').mockResolvedValue({ id: '1', values: { name: { type: 'text', value: 'Ada Lovelace' } } });
+    render(<Probe />);
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('ready'));
+    fireEvent.click(screen.getByRole('button', { name: 'update' }));
+    await waitFor(() => expect(screen.getByTestId('value').textContent).toBe('Ada Lovelace'));
+    expect(update).toHaveBeenCalledWith('1', 'name', 'text', 'Grace');
+  });
+
+  it('restaure uniquement la cellule en erreur et conserve une page ajoutée entre-temps', async () => {
+    let rejectUpdate!: (cause: Error) => void;
+    let resolvePage!: (page: { items: { id: string; values: Record<string, { type: 'text'; value: string }> }[]; page: number; pageSize: number; total: number; totalPages: number }) => void;
+    vi.spyOn(crmService, 'loadFirstPage').mockResolvedValue({ columns: [{ id: 'name', label: 'Nom', type: 'text' }], contacts: { items: [{ id: '1', values: { name: { type: 'text', value: 'Ada' } } }], page: 1, pageSize: 1, total: 2, totalPages: 2 } });
+    vi.spyOn(crmService, 'updateContactValue').mockReturnValue(new Promise((_resolve, reject) => { rejectUpdate = reject; }));
+    vi.spyOn(crmService, 'loadContacts').mockReturnValue(new Promise((resolve) => { resolvePage = resolve; }));
+    let callback: IntersectionObserverCallback = () => undefined;
+    vi.stubGlobal('IntersectionObserver', class { constructor(next: IntersectionObserverCallback) { callback = next; } observe() {} disconnect() {} });
+    render(<Probe />);
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('ready'));
+    fireEvent.click(screen.getByRole('button', { name: 'update' }));
+    callback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+    resolvePage({ items: [{ id: '2', values: { name: { type: 'text', value: 'Grace' } } }], page: 2, pageSize: 1, total: 2, totalPages: 2 });
+    await waitFor(() => expect(screen.getByTestId('count').textContent).toBe('2'));
+    rejectUpdate(new Error('Echec PATCH'));
+    await waitFor(() => expect(screen.getByTestId('value').textContent).toBe('Ada'));
+    expect(screen.getByTestId('count').textContent).toBe('2');
   });
 });

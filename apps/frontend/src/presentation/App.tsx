@@ -4,7 +4,7 @@ import { useCrmData } from './use-crm-data';
 import './crm.css';
 
 export function App() {
-  const { status, columns, contacts, error, sentinelRef } = useCrmData();
+  const { status, columns, contacts, error, sentinelRef, updateContactValue } = useCrmData();
 
   return (
     <main className="crm-page">
@@ -12,7 +12,7 @@ export function App() {
       {status === 'loading' && <p className="state">Chargement des contacts...</p>}
       {status === 'error' && <p className="state state-error" role="alert">{error?.message}</p>}
       {status === 'empty' && <p className="state">Aucun contact à afficher.</p>}
-      {(status === 'ready' || status === 'empty') && <ContactGrid columns={columns} contacts={contacts} />}
+      {(status === 'ready' || status === 'empty') && <ContactGrid columns={columns} contacts={contacts} onUpdateCell={updateContactValue} />}
       {status === 'ready' && error && <p className="state state-error" role="alert">{error.message}</p>}
       <div className="sentinel" ref={sentinelRef} aria-hidden="true" />
     </main>

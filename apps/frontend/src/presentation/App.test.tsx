@@ -11,13 +11,13 @@ afterEach(() => vi.resetAllMocks());
 
 describe('App', () => {
   it('affiche l etat vide', () => {
-    mockedUseCrmData.mockReturnValue({ status: 'empty', columns: [], contacts: [], error: null, hasMore: false, loadMore: vi.fn(), sentinelRef: vi.fn() });
+    mockedUseCrmData.mockReturnValue({ status: 'empty', columns: [], contacts: [], error: null, hasMore: false, loadMore: vi.fn(), sentinelRef: vi.fn(), updateContactValue: vi.fn() });
     render(<App />);
     expect(screen.getByText('Aucun contact à afficher.')).toBeTruthy();
   });
 
   it('affiche une erreur controlee', () => {
-    mockedUseCrmData.mockReturnValue({ status: 'error', columns: [], contacts: [], error: new Error('Serveur indisponible'), hasMore: false, loadMore: vi.fn(), sentinelRef: vi.fn() });
+    mockedUseCrmData.mockReturnValue({ status: 'error', columns: [], contacts: [], error: new Error('Serveur indisponible'), hasMore: false, loadMore: vi.fn(), sentinelRef: vi.fn(), updateContactValue: vi.fn() });
     render(<App />);
     expect(screen.getByRole('alert').textContent).toBe('Serveur indisponible');
   });

@@ -9,5 +9,10 @@
 .contact-grid th, .contact-grid td { padding: 14px 16px; border-bottom: 1px solid #e7ebed; white-space: nowrap; }
 .contact-grid thead th { background: #183f3a; color: #fff; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
 .contact-grid tbody th { color: #526067; font-weight: 600; } .contact-grid tbody tr:hover { background: #f0f6f3; }
+.cell-value { display: block; width: 100%; min-height: 24px; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: text; }
+.cell-value:focus, .contact-grid input:focus { outline: 2px solid #d1843f; outline-offset: 2px; }
+.contact-grid input { width: 100%; min-width: 100px; padding: 4px 6px; border: 1px solid #183f3a; font: inherit; }
+.cell-status, .cell-error { display: block; margin-top: 4px; font-size: .75rem; }
+.cell-status { color: #526067; } .cell-error { color: #a32929; }
 .state { padding: 48px 0; font-family: ui-sans-serif, system-ui, sans-serif; } .state-error { color: #a32929; } .sentinel { height: 1px; }
 @media (max-width: 640px) { .crm-page { padding: 28px 16px; } .crm-header { display: block; } .crm-header p { margin-top: 8px; } }

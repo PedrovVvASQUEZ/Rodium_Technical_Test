@@ -2,7 +2,7 @@ export type ColumnType = 'text' | 'number' | 'date' | 'phone';
 
 export type Column = { id: string; label: string; type: ColumnType };
 export type ContactValue = { type: ColumnType; value: string | number };
-export type Contact = { id: string; values: Readonly<Record<string, ContactValue>> };
+export type Contact = { id: string; values: Readonly<Record<string, ContactValue | null>> };
 export type ContactsPage = { items: readonly Contact[]; page: number; pageSize: number; total: number; totalPages: number };
 
 const columnTypes: readonly ColumnType[] = ['text', 'number', 'date', 'phone'];
@@ -17,7 +17,8 @@ export function validateColumns(value: unknown): readonly Column[] {
   });
 }
 
-function validateContactValue(value: unknown): ContactValue {
+function validateContactValue(value: unknown): ContactValue | null {
+  if (value === null) return null;
   if (!isRecord(value) || !isColumnType(value.type)) throw new Error('Contact response contains an invalid value type');
   if (value.type === 'number' && typeof value.value === 'number' && Number.isFinite(value.value)) return { type: value.type, value: value.value };
   if (value.type !== 'number' && typeof value.value === 'string') return { type: value.type, value: value.value };
