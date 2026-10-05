@@ -26,6 +26,15 @@ export type ListContactsResult = {
   totalPages: number;
 };
 
+export class ListContactsQueryError extends Error {
+  readonly code = 'INVALID_QUERY';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'ListContactsQueryError';
+  }
+}
+
 const MAX_PAGE_SIZE = 100;
 const MAX_PAGE = 1_000_000;
 
@@ -35,7 +44,7 @@ const isSortDirection = (value: unknown): value is SortDirection =>
 const findColumn = (columns: readonly Column[], id: string): Column => {
   const column = columns.find((candidate) => candidate.id === id);
   if (!column) {
-    throw new Error(`Unknown column: ${id}`);
+    throw new ListContactsQueryError(`Unknown column: ${id}`);
   }
   return column;
 };
@@ -44,7 +53,7 @@ const parseFilterValue = (column: Column, value: string): string | number => {
   if (column.type === 'number') {
     const numberValue = Number(value);
     if (!Number.isFinite(numberValue) || value.trim() === '') {
-      throw new Error('Number filter is invalid');
+      throw new ListContactsQueryError('Number filter is invalid');
     }
     return numberValue;
   }
@@ -66,11 +75,11 @@ export const validateListContactsQuery = (
   columns: readonly Column[],
 ): ListContactsQuery => {
   if (!Number.isSafeInteger(input.page) || input.page < 1 || input.page > MAX_PAGE) {
-    throw new Error('Page must be a safe integer between 1 and 1000000');
+    throw new ListContactsQueryError('Page must be a safe integer between 1 and 1000000');
   }
 
   if (!Number.isSafeInteger(input.pageSize) || input.pageSize < 1 || input.pageSize > MAX_PAGE_SIZE) {
-    throw new Error('Page size must be a safe integer between 1 and 100');
+    throw new ListContactsQueryError('Page size must be a safe integer between 1 and 100');
   }
 
   if (input.sortBy !== undefined) {
@@ -78,27 +87,27 @@ export const validateListContactsQuery = (
   }
 
   if (input.sortDirection !== undefined && !isSortDirection(input.sortDirection)) {
-    throw new Error('Sort direction is invalid');
+    throw new ListContactsQueryError('Sort direction is invalid');
   }
 
   if (input.filterBy !== undefined && typeof input.filterBy !== 'string') {
-    throw new Error('Filter column must be a non-empty string');
+    throw new ListContactsQueryError('Filter column must be a non-empty string');
   }
 
   if (input.filterBy !== undefined && input.filterBy.trim() === '') {
-    throw new Error('Filter column must be a non-empty string');
+    throw new ListContactsQueryError('Filter column must be a non-empty string');
   }
 
   if (input.filterValue !== undefined && typeof input.filterValue !== 'string') {
-    throw new Error('Filter value must be a string');
+    throw new ListContactsQueryError('Filter value must be a string');
   }
 
   if (input.filterBy === undefined && input.filterValue !== undefined) {
-    throw new Error('Filter column is required');
+    throw new ListContactsQueryError('Filter column is required');
   }
 
   if (input.filterBy !== undefined && input.filterValue === undefined) {
-    throw new Error('Filter value is required');
+    throw new ListContactsQueryError('Filter value is required');
   }
 
   const filterColumn = input.filterBy !== undefined ? findColumn(columns, input.filterBy) : undefined;
@@ -108,7 +117,7 @@ export const validateListContactsQuery = (
       : undefined;
 
   if (input.filterBy && filterColumn?.type === 'date' && !isValidDate(input.filterValue!)) {
-    throw new Error('Date filter is invalid');
+    throw new ListContactsQueryError('Date filter is invalid');
   }
 
   return {
