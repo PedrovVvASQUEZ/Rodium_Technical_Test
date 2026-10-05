@@ -49,6 +49,22 @@ describe('apiClient', () => {
     expect(fetch).toHaveBeenCalledWith('http://localhost:3000/contacts/c%2F2', { method: 'DELETE' });
   });
 
+  it('gère la création, le renommage, le déplacement et la suppression de colonne', async () => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: 'c/1', label: 'Pays', type: 'text' }), { status: 201 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: 'c/1', label: 'Région', type: 'text' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ id: 'c/1', label: 'Région', type: 'text' }]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetch);
+    await expect(apiClient.createColumn({ label: 'Pays', type: 'text' })).resolves.toEqual({ id: 'c/1', label: 'Pays', type: 'text' });
+    await expect(apiClient.renameColumn('c/1', 'Région')).resolves.toEqual({ id: 'c/1', label: 'Région', type: 'text' });
+    await expect(apiClient.reorderColumns(['c/1'])).resolves.toEqual([{ id: 'c/1', label: 'Région', type: 'text' }]);
+    await expect(apiClient.deleteColumn('c/1')).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenNthCalledWith(2, 'http://localhost:3000/columns/c%2F1', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ label: 'Région' }) });
+    expect(fetch).toHaveBeenNthCalledWith(3, 'http://localhost:3000/columns/reorder', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ['c/1'] }) });
+    expect(fetch).toHaveBeenNthCalledWith(4, 'http://localhost:3000/columns/c%2F1', { method: 'DELETE' });
+  });
+
   it.each([
     { page: 0, pageSize: 50, total: 1, totalPages: 1 },
     { page: 1, pageSize: 0, total: 1, totalPages: 1 },

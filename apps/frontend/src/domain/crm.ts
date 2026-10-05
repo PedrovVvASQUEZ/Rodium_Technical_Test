@@ -1,6 +1,7 @@
 export type ColumnType = 'text' | 'number' | 'date' | 'phone';
 
 export type Column = { id: string; label: string; type: ColumnType };
+export type CreateColumnInput = { label: string; type: ColumnType };
 export type ContactValue = { type: ColumnType; value: string | number };
 export type Contact = { id: string; values: Readonly<Record<string, ContactValue | null>> };
 export type ContactsPage = { items: readonly Contact[]; page: number; pageSize: number; total: number; totalPages: number };
@@ -15,6 +16,10 @@ export function validateColumns(value: unknown): readonly Column[] {
     if (!isRecord(candidate) || typeof candidate.id !== 'string' || candidate.id.trim() === '' || typeof candidate.label !== 'string' || candidate.label.trim() === '' || !isColumnType(candidate.type)) throw new Error('Columns response contains an invalid column');
     return { id: candidate.id, label: candidate.label, type: candidate.type };
   });
+}
+
+export function validateColumn(value: unknown): Column {
+  return validateColumns([value])[0];
 }
 
 function validateContactValue(value: unknown): ContactValue | null {

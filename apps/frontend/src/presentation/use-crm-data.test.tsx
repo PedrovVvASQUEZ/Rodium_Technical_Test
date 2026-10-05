@@ -5,7 +5,7 @@ import { useCrmData } from './use-crm-data';
 
 function Probe() {
   const data = useCrmData();
-  return <><output data-testid="status">{data.status}</output><output data-testid="count">{data.contacts.length}</output><output data-testid="value">{String(data.contacts[0]?.values.name?.value ?? '')}</output><output data-testid="error">{data.error?.message ?? ''}</output><output data-testid="mutation-error">{data.mutationError?.message ?? ''}</output><output data-testid="create-status">{data.createStatus}</output><output data-testid="delete-status">{data.deleteStatus}</output><button onClick={() => void data.updateContactValue('1', 'name', 'Grace').catch(() => undefined)}>update</button><button onClick={() => void data.createContact({ name: 'New' }).catch(() => undefined)}>create</button><button onClick={() => void data.deleteContact('1').catch(() => undefined)}>delete</button><div data-testid="sentinel" ref={data.sentinelRef} /></>;
+  return <><output data-testid="status">{data.status}</output><output data-testid="count">{data.contacts.length}</output><output data-testid="value">{String(data.contacts[0]?.values.name?.value ?? '')}</output><output data-testid="column-count">{data.columns.length}</output><output data-testid="column-label">{data.columns[0]?.label ?? ''}</output><output data-testid="column-value">{String(data.contacts[0]?.values.name?.value ?? '')}</output><output data-testid="error">{data.error?.message ?? ''}</output><output data-testid="mutation-error">{data.mutationError?.message ?? ''}</output><output data-testid="column-error">{data.columnMutationError?.message ?? ''}</output><output data-testid="create-status">{data.createStatus}</output><output data-testid="column-status">{data.columnCreateStatus}</output><output data-testid="delete-status">{data.deleteStatus}</output><output data-testid="update-status">{data.updateStatus}</output><button onClick={() => void data.updateContactValue('1', 'name', 'Grace').catch(() => undefined)}>update</button><button onClick={() => void data.createContact({ name: 'New' }).catch(() => undefined)}>create</button><button onClick={() => void data.deleteContact('1').catch(() => undefined)}>delete</button><button onClick={() => void data.createColumn({ label: 'Pays', type: 'text' }).catch(() => undefined)}>create-column</button><button onClick={() => void data.renameColumn('name', 'Prénom').catch(() => undefined)}>rename-column</button><button onClick={() => void data.deleteColumn('name').catch(() => undefined)}>delete-column</button><button onClick={() => void data.reorderColumns(['name']).catch(() => undefined)}>reorder-columns</button><div data-testid="sentinel" ref={data.sentinelRef} /></>;
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -63,6 +63,7 @@ describe('useCrmData', () => {
     await waitFor(() => expect(screen.getByTestId('value').textContent).toBe('Ada'));
     resolveUpdate({ id: '1', values: { name: { type: 'text', value: 'Grace' } } });
     await waitFor(() => expect(screen.getByTestId('value').textContent).toBe('Grace'));
+    expect(screen.getByTestId('update-status').textContent).toBe('idle');
   });
 
   it('charge toutes les pages jusqu a totalPages puis s arrete', async () => {
@@ -161,5 +162,32 @@ describe('useCrmData', () => {
     fireEvent.click(screen.getByRole('button', { name: 'delete' }));
     await waitFor(() => expect(screen.getByTestId('mutation-error').textContent).toBe('Echec DELETE'));
     expect(screen.getByTestId('count').textContent).toBe('1');
+  });
+
+  it('met à jour les colonnes seulement après succès et retire les valeurs après suppression', async () => {
+    vi.spyOn(crmService, 'loadFirstPage').mockResolvedValue({ columns: [{ id: 'name', label: 'Nom', type: 'text' }], contacts: { items: [{ id: '1', values: { name: { type: 'text', value: 'Ada' } } }], page: 1, pageSize: 1, total: 1, totalPages: 1 } });
+    vi.spyOn(crmService, 'renameColumn').mockResolvedValue({ id: 'name', label: 'Prénom', type: 'text' });
+    vi.spyOn(crmService, 'deleteColumn').mockResolvedValue();
+    render(<Probe />);
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('ready'));
+    fireEvent.click(screen.getByRole('button', { name: 'rename-column' }));
+    await waitFor(() => expect(screen.getByTestId('column-label').textContent).toBe('Prénom'));
+    fireEvent.click(screen.getByRole('button', { name: 'delete-column' }));
+    await waitFor(() => expect(screen.getByTestId('column-count').textContent).toBe('0'));
+    expect(screen.getByTestId('column-value').textContent).toBe('');
+  });
+
+  it('ne modifie pas les colonnes quand une mutation échoue et verrouille les mutations concurrentes', async () => {
+    let resolve!: (column: { id: string; label: string; type: 'text' }) => void;
+    vi.spyOn(crmService, 'loadFirstPage').mockResolvedValue({ columns: [{ id: 'name', label: 'Nom', type: 'text' }], contacts: { items: [], page: 1, pageSize: 1, total: 0, totalPages: 0 } });
+    const create = vi.spyOn(crmService, 'createColumn').mockReturnValue(new Promise((nextResolve) => { resolve = nextResolve; }));
+    render(<Probe />);
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('empty'));
+    fireEvent.click(screen.getByRole('button', { name: 'create-column' }));
+    fireEvent.click(screen.getByRole('button', { name: 'reorder-columns' }));
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('column-count').textContent).toBe('1');
+    resolve({ id: 'country', label: 'Pays', type: 'text' });
+    await waitFor(() => expect(screen.getByTestId('column-count').textContent).toBe('2'));
   });
 });

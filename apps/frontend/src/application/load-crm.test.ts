@@ -19,4 +19,15 @@ describe('crmService', () => {
     expect(apiClient.createContact).toHaveBeenCalledWith({ name: 'Ada' });
     expect(apiClient.deleteContact).toHaveBeenCalledWith('1');
   });
+
+  it('délègue les mutations de colonnes', async () => {
+    vi.spyOn(apiClient, 'createColumn').mockResolvedValue({ id: 'c1', label: 'Pays', type: 'text' });
+    vi.spyOn(apiClient, 'renameColumn').mockResolvedValue({ id: 'c1', label: 'Région', type: 'text' });
+    vi.spyOn(apiClient, 'deleteColumn').mockResolvedValue();
+    vi.spyOn(apiClient, 'reorderColumns').mockResolvedValue([{ id: 'c1', label: 'Région', type: 'text' }]);
+    await expect(crmService.createColumn({ label: 'Pays', type: 'text' })).resolves.toMatchObject({ id: 'c1' });
+    await expect(crmService.renameColumn('c1', 'Région')).resolves.toMatchObject({ label: 'Région' });
+    await expect(crmService.deleteColumn('c1')).resolves.toBeUndefined();
+    await expect(crmService.reorderColumns(['c1'])).resolves.toHaveLength(1);
+  });
 });

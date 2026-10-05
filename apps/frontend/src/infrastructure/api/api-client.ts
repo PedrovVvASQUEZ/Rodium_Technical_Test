@@ -1,4 +1,4 @@
-import { validateColumns, validateContact, validateContactsPage, type Column, type ColumnType, type Contact, type ContactsPage } from '../../domain/crm';
+import { validateColumn, validateColumns, validateContact, validateContactsPage, type Column, type ColumnType, type Contact, type ContactsPage, type CreateColumnInput } from '../../domain/crm';
 
 export class ApiError extends Error {
   constructor(message: string, readonly kind: 'network' | 'http' | 'contract', readonly status?: number) { super(message); this.name = 'ApiError'; }
@@ -30,7 +30,7 @@ async function post(path: string, body: unknown): Promise<unknown> {
 async function remove(path: string): Promise<void> {
   let response: Response;
   try { response = await fetch(`${apiBaseUrl}${path}`, { method: 'DELETE' }); } catch { throw new ApiError('Le serveur est inaccessible.', 'network'); }
-  if (!response.ok) throw new ApiError(`La requête a échoué (${response.status}).`, 'http', response.status);
+  if (response.status !== 204) throw new ApiError(`La requête a échoué (${response.status}).`, 'http', response.status);
 }
 
 export const apiClient = {
@@ -56,5 +56,20 @@ export const apiClient = {
   },
   async deleteContact(contactId: string): Promise<void> {
     await remove(`/contacts/${encodeURIComponent(contactId)}`);
+  },
+  async createColumn(input: CreateColumnInput): Promise<Column> {
+    try { return validateColumn(await post('/columns', input)); }
+    catch (error) { if (error instanceof ApiError) throw error; throw new ApiError('Le contrat de la colonne est invalide.', 'contract'); }
+  },
+  async renameColumn(columnId: string, label: string): Promise<Column> {
+    try { return validateColumn(await patch(`/columns/${encodeURIComponent(columnId)}`, { label })); }
+    catch (error) { if (error instanceof ApiError) throw error; throw new ApiError('Le contrat de la colonne est invalide.', 'contract'); }
+  },
+  async deleteColumn(columnId: string): Promise<void> {
+    await remove(`/columns/${encodeURIComponent(columnId)}`);
+  },
+  async reorderColumns(ids: readonly string[]): Promise<readonly Column[]> {
+    try { return validateColumns(await patch('/columns/reorder', { ids })); }
+    catch (error) { if (error instanceof ApiError) throw error; throw new ApiError('Le contrat des colonnes est invalide.', 'contract'); }
   },
 };
