@@ -16,8 +16,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
-    "db:migrate": "npm run build --workspace @rodium/backend && node apps/backend/dist/infrastructure/persistence/scripts/migrate.js",
-    "db:seed": "npm run build --workspace @rodium/backend && node apps/backend/dist/infrastructure/persistence/scripts/seed.js"
+    "db:migrate": "npm run build --workspace @rodium/backend && DATABASE_URL=postgresql://rodium:rodium_dev_only@localhost:5432/rodium node apps/backend/dist/infrastructure/persistence/scripts/migrate.js",
+    "db:seed": "npm run build --workspace @rodium/backend && DATABASE_URL=postgresql://rodium:rodium_dev_only@localhost:5432/rodium node apps/backend/dist/infrastructure/persistence/scripts/seed.js"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

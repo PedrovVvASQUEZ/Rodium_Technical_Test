@@ -7,6 +7,7 @@ import {
   type ContactRepositoryResult,
 } from '../../domain/contacts/contact-repository';
 import { type Contact } from '../../domain/contacts/contact';
+import { readColumns, type ColumnSource } from '../../application/columns/column-repository';
 
 type ContactRow = { id: string; values: unknown; total: string };
 type StoredValue = { type: string; value: string | number };
@@ -59,11 +60,7 @@ const SORT_ASC = `
 const SORT_DESC = SORT_ASC.replaceAll(' ASC NULLS LAST', ' DESC NULLS LAST').replace('c.id ASC', 'c.id DESC');
 
 export class PostgresContactRepository implements ContactRepository {
-  private readonly allowedColumns: ReadonlyMap<string, Column>;
-
-  constructor(private readonly pool: Pool, columns: readonly Column[]) {
-    this.allowedColumns = new Map(columns.map((column) => [column.id, column]));
-  }
+  constructor(private readonly pool: Pool, private readonly columnSource: ColumnSource) {}
 
   async findMany(query: ContactRepositoryQuery): Promise<ContactRepositoryResult> {
     if (!Number.isSafeInteger(query.page) || query.page < 1) {
@@ -76,11 +73,13 @@ export class PostgresContactRepository implements ContactRepository {
       throw new Error('Sort direction is invalid');
     }
 
-    const sortColumn = query.sortBy === undefined ? undefined : this.allowedColumns.get(query.sortBy);
+    const columns = await readColumns(this.columnSource);
+    const allowedColumns = new Map(columns.map((column) => [column.id, column]));
+    const sortColumn = query.sortBy === undefined ? undefined : allowedColumns.get(query.sortBy);
     if (query.sortBy !== undefined && !sortColumn) {
       throw new Error(`Unknown sort column: ${query.sortBy}`);
     }
-    const filterColumn = query.filterBy === undefined ? undefined : this.allowedColumns.get(query.filterBy);
+    const filterColumn = query.filterBy === undefined ? undefined : allowedColumns.get(query.filterBy);
     if (query.filterBy !== undefined && !filterColumn) {
       throw new Error(`Unknown filter column: ${query.filterBy}`);
     }
@@ -118,13 +117,15 @@ export class PostgresContactRepository implements ContactRepository {
   }
 
   async create(values: Readonly<Record<string, ContactValue>>): Promise<Contact> {
+    const columns = await readColumns(this.columnSource);
+    const allowedColumns = new Map(columns.map((column) => [column.id, column]));
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
       const result = await client.query<{ id: string }>('INSERT INTO contacts DEFAULT VALUES RETURNING id::text AS id');
       const id = result.rows[0].id;
       for (const [columnId, value] of Object.entries(values)) {
-        const column = this.allowedColumns.get(columnId);
+        const column = allowedColumns.get(columnId);
         if (!column) throw new InvalidContactInputError(`Unknown column: ${columnId}`);
         if (column.type !== value.type) throw new InvalidContactInputError(`Value type does not match column '${columnId}'`);
         await this.insertValue(client, id, column, value);
@@ -140,7 +141,8 @@ export class PostgresContactRepository implements ContactRepository {
   }
 
   async updateValue(contactId: string, columnId: string, value: ContactValue | null): Promise<Contact> {
-    const column = this.allowedColumns.get(columnId);
+    const columns = await readColumns(this.columnSource);
+    const column = columns.find((candidate) => candidate.id === columnId);
     if (!column) throw new InvalidContactInputError(`Unknown column: ${columnId}`);
     if (value !== null && column.type !== value.type) {
       throw new InvalidContactInputError(`Value type does not match column '${columnId}'`);

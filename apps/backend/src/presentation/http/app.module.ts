@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { Pool } from 'pg';
 import { ListColumns } from '../../application/columns/list-columns';
+import { CreateColumnUseCase, DeleteColumnUseCase, RenameColumnUseCase, ReorderColumnsUseCase } from '../../application/columns/manage-columns';
 import { ColumnRepository } from '../../application/columns/column-repository';
 import { ListContacts } from '../../application/contacts/list-contacts';
 import { CreateContact } from '../../application/contacts/create-contact';
@@ -17,6 +18,7 @@ import { HealthController } from './health.controller';
 import {
   COLUMN_REPOSITORY, CONTACT_REPOSITORY, CREATE_CONTACT, DATABASE_POOL, DELETE_CONTACT,
   LIST_COLUMNS, LIST_CONTACTS, UPDATE_CONTACT_VALUE,
+  CREATE_COLUMN, DELETE_COLUMN, RENAME_COLUMN, REORDER_COLUMNS,
 } from './provider-tokens';
 
 @Module({
@@ -33,7 +35,7 @@ import {
       useFactory: (
         pool: Pool,
         columnRepository: ColumnRepository,
-      ) => columnRepository.findAll().then((columns) => new PostgresContactRepository(pool, columns)),
+      ) => new PostgresContactRepository(pool, columnRepository),
       inject: [DATABASE_POOL, COLUMN_REPOSITORY],
     },
     {
@@ -41,22 +43,23 @@ import {
       useFactory: (repository: ColumnRepository) => new ListColumns(repository),
       inject: [COLUMN_REPOSITORY],
     },
+    { provide: CREATE_COLUMN, useFactory: (repository: ColumnRepository) => new CreateColumnUseCase(repository), inject: [COLUMN_REPOSITORY] },
+    { provide: RENAME_COLUMN, useFactory: (repository: ColumnRepository) => new RenameColumnUseCase(repository), inject: [COLUMN_REPOSITORY] },
+    { provide: DELETE_COLUMN, useFactory: (repository: ColumnRepository) => new DeleteColumnUseCase(repository), inject: [COLUMN_REPOSITORY] },
+    { provide: REORDER_COLUMNS, useFactory: (repository: ColumnRepository) => new ReorderColumnsUseCase(repository), inject: [COLUMN_REPOSITORY] },
     {
       provide: LIST_CONTACTS,
-      useFactory: (repository: ContactRepository, columnRepository: ColumnRepository) =>
-        columnRepository.findAll().then((columns) => new ListContacts(repository, columns)),
+      useFactory: (repository: ContactRepository, columnRepository: ColumnRepository) => new ListContacts(repository, columnRepository),
       inject: [CONTACT_REPOSITORY, COLUMN_REPOSITORY],
     },
     {
       provide: CREATE_CONTACT,
-      useFactory: (repository: ContactRepository, columnRepository: ColumnRepository) =>
-        columnRepository.findAll().then((columns) => new CreateContact(repository, columns)),
+      useFactory: (repository: ContactRepository, columnRepository: ColumnRepository) => new CreateContact(repository, columnRepository),
       inject: [CONTACT_REPOSITORY, COLUMN_REPOSITORY],
     },
     {
       provide: UPDATE_CONTACT_VALUE,
-      useFactory: (repository: ContactRepository, columnRepository: ColumnRepository) =>
-        columnRepository.findAll().then((columns) => new UpdateContactValue(repository, columns)),
+      useFactory: (repository: ContactRepository, columnRepository: ColumnRepository) => new UpdateContactValue(repository, columnRepository),
       inject: [CONTACT_REPOSITORY, COLUMN_REPOSITORY],
     },
     {

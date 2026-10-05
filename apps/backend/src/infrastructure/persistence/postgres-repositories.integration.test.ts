@@ -9,6 +9,7 @@ import { PostgresContactRepository } from './postgres-contact-repository';
 describe('PostgreSQL repositories', () => {
   let pool: Pool;
   let contacts: PostgresContactRepository;
+  let columnsRepository: PostgresColumnRepository;
 
   beforeAll(async () => {
     if (!process.env.DATABASE_URL) {
@@ -25,8 +26,8 @@ describe('PostgreSQL repositories', () => {
          VALUES ('55555555-5555-4555-8555-555555555555', 'Phone', 'phone', 4)
          ON CONFLICT (id) DO UPDATE SET label = EXCLUDED.label, type = EXCLUDED.type, position = EXCLUDED.position`,
       );
-      const columns = await new PostgresColumnRepository(pool).findAll();
-      contacts = new PostgresContactRepository(pool, columns);
+      columnsRepository = new PostgresColumnRepository(pool);
+      contacts = new PostgresContactRepository(pool, columnsRepository);
     } catch (error) {
       throw new Error(
         `PostgreSQL integration tests require an accessible DATABASE_URL (${String(error)})`,
@@ -39,6 +40,16 @@ describe('PostgreSQL repositories', () => {
   beforeEach(async () => {
     await pool.query('DELETE FROM contact_values');
     await pool.query('DELETE FROM contacts');
+    await pool.query(`
+      WITH ordered_columns AS (
+        SELECT id, row_number() OVER (ORDER BY position ASC, id ASC) - 1 AS next_position
+        FROM columns
+      )
+      UPDATE columns
+      SET position = ordered_columns.next_position
+      FROM ordered_columns
+      WHERE columns.id = ordered_columns.id
+    `);
     await seedDatabase();
   });
 
@@ -145,5 +156,68 @@ describe('PostgreSQL repositories', () => {
     await contacts.deleteById(created.id);
     await expect(contacts.deleteById(created.id)).rejects.toThrow('Contact not found');
     await expect(contacts.updateValue('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', '55555555-5555-4555-8555-555555555555', null)).rejects.toThrow('Contact not found');
+  });
+
+  it('creates at a dense position, rejects duplicate labels, reorders and cascades values', async () => {
+    const inserted = await columnsRepository.create({ label: 'Temporary', type: 'text', position: 1 });
+    let columns = await columnsRepository.findAll();
+    expect(columns.map((column) => column.position)).toEqual(columns.map((_, index) => index));
+    expect(inserted.position).toBe(1);
+    await expect(columnsRepository.rename(inserted.id, 'Name')).rejects.toThrow('already exists');
+
+    const reorderedIds = [...columns].reverse().map((column) => column.id);
+    await columnsRepository.reorder({ ids: reorderedIds });
+    columns = await columnsRepository.findAll();
+    expect(columns.map((column) => column.id)).toEqual(reorderedIds);
+
+    const contact = await contacts.create({ [inserted.id]: { type: 'text', value: 'temporary' } });
+    await columnsRepository.delete(inserted.id);
+    const cascade = await pool.query('SELECT 1 FROM contact_values WHERE contact_id = $1::uuid AND column_id = $2::uuid', [contact.id, inserted.id]);
+    expect(cascade.rowCount).toBe(0);
+    columns = await columnsRepository.findAll();
+    expect(columns.map((column) => column.position)).toEqual(columns.map((_, index) => index));
+  });
+
+  it('preserves a dynamic column and dense positions when the seed runs again', async () => {
+    const dynamic = await columnsRepository.create({ label: 'Dynamic', type: 'text', position: 1 });
+    try {
+      const seededNameColumn = (await columnsRepository.findAll()).find((column) => column.label === 'Name')!;
+      const seededContact = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+      await pool.query(
+        `UPDATE contact_values SET value_text = $1
+         WHERE contact_id = $2 AND column_id = $3`,
+        ['Edited name', seededContact, seededNameColumn.id],
+      );
+      const beforeSeed = await columnsRepository.findAll();
+
+      await seedDatabase();
+
+      const afterSeed = await columnsRepository.findAll();
+      const preservedValue = await pool.query(
+        `SELECT value_text FROM contact_values WHERE contact_id = $1 AND column_id = $2`,
+        [seededContact, seededNameColumn.id],
+      );
+      expect(preservedValue.rows[0].value_text).toBe('Edited name');
+      expect(afterSeed.find((column) => column.id === dynamic.id)?.position).toBe(dynamic.position);
+      expect(afterSeed.map((column) => column.position)).toEqual(afterSeed.map((_, index) => index));
+      expect(afterSeed.filter((column) => column.id !== dynamic.id).map((column) => [column.id, column.position])).toEqual(
+        beforeSeed.filter((column) => column.id !== dynamic.id).map((column) => [column.id, column.position]),
+      );
+    } finally {
+      await columnsRepository.delete(dynamic.id);
+    }
+  });
+
+  it('rejects a reorder containing a duplicate UUID in the repository', async () => {
+    const columns = await columnsRepository.findAll();
+    const duplicateIds = columns.map((column) => column.id);
+    duplicateIds[duplicateIds.length - 1] = duplicateIds[0];
+
+    await expect(columnsRepository.reorder({ ids: duplicateIds })).rejects.toThrow(
+      'Reorder must contain every existing column exactly once',
+    );
+    expect((await columnsRepository.findAll()).map((column) => column.position)).toEqual(
+      columns.map((column) => column.position),
+    );
   });
 });

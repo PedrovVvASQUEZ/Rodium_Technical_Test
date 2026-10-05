@@ -20,31 +20,32 @@ export const seedDatabase = async (): Promise<void> => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      for (const [id, label, type, position] of columns) {
+      for (const [id, label, type] of columns) {
         await client.query(
-          'INSERT INTO columns (id, label, type, position) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET label = EXCLUDED.label, type = EXCLUDED.type, position = EXCLUDED.position',
-          [id, label, type, position],
+          `INSERT INTO columns (id, label, type, position)
+           VALUES ($1, $2, $3, COALESCE((SELECT MAX(position) + 1 FROM columns), 0))
+           ON CONFLICT DO NOTHING`,
+          [id, label, type],
         );
       }
       for (const [id, name, company, score, joined] of contacts) {
-        await client.query('DELETE FROM contact_values WHERE contact_id = $1', [id]);
         await client.query('INSERT INTO contacts (id) VALUES ($1) ON CONFLICT (id) DO NOTHING', [id]);
         await client.query(
           `INSERT INTO contact_values (contact_id, column_id, value_type, value_text)
            VALUES ($1, $2, 'text', $3), ($1, $4, 'text', $5)
-           ON CONFLICT (contact_id, column_id) DO UPDATE SET value_type = EXCLUDED.value_type, value_text = EXCLUDED.value_text, value_number = NULL, value_date = NULL`,
+           ON CONFLICT (contact_id, column_id) DO NOTHING`,
           [id, columns[0][0], name, columns[1][0], company],
         );
         await client.query(
           `INSERT INTO contact_values (contact_id, column_id, value_type, value_number)
            VALUES ($1, $2, 'number', $3)
-           ON CONFLICT (contact_id, column_id) DO UPDATE SET value_type = EXCLUDED.value_type, value_number = EXCLUDED.value_number, value_text = NULL, value_date = NULL`,
+           ON CONFLICT (contact_id, column_id) DO NOTHING`,
           [id, columns[2][0], score],
         );
         await client.query(
           `INSERT INTO contact_values (contact_id, column_id, value_type, value_date)
            VALUES ($1, $2, 'date', $3)
-           ON CONFLICT (contact_id, column_id) DO UPDATE SET value_type = EXCLUDED.value_type, value_date = EXCLUDED.value_date, value_text = NULL, value_number = NULL`,
+           ON CONFLICT (contact_id, column_id) DO NOTHING`,
           [id, columns[3][0], joined],
         );
       }

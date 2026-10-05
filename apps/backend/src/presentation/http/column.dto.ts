@@ -1,0 +1,8 @@
+import { InvalidColumnError } from '../../domain/columns/column-errors';
+type RecordValue = Record<string, unknown>;
+const isRecord = (value: unknown): value is RecordValue => typeof value === 'object' && value !== null && !Array.isArray(value);
+const record = (value: unknown): RecordValue => { if (!isRecord(value)) throw new InvalidColumnError('Request body must be an object'); return value; };
+const only = (value: RecordValue, allowed: readonly string[]) => { if (Object.keys(value).some((key) => !allowed.includes(key))) throw new InvalidColumnError('Unknown body property'); };
+export const adaptCreateColumn = (body: unknown): { label: string; type: string; position?: number } => { const value = record(body); only(value, ['label', 'type', 'position']); if (typeof value.label !== 'string') throw new InvalidColumnError("Body property 'label' must be a string"); if (typeof value.type !== 'string') throw new InvalidColumnError("Body property 'type' must be a string"); if (value.position !== undefined && (!Number.isSafeInteger(value.position) || (value.position as number) < 0)) throw new InvalidColumnError("Body property 'position' must be a non-negative integer"); return { label: value.label, type: value.type, position: value.position as number | undefined }; };
+export const adaptRenameColumn = (body: unknown) => { const value = record(body); only(value, ['label']); if (typeof value.label !== 'string') throw new InvalidColumnError("Body property 'label' must be a string"); return { label: value.label }; };
+export const adaptReorderColumns = (body: unknown): { ids: unknown } => { const value = record(body); only(value, ['ids']); return { ids: value.ids }; };

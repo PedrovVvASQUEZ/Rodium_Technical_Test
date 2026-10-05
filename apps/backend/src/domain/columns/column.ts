@@ -4,7 +4,10 @@ export type Column = {
   id: string;
   label: string;
   type: ColumnType;
+  position?: number;
 };
+
+export const MAX_COLUMN_LABEL_LENGTH = 120;
 
 export type ContactValue =
   | { type: 'text'; value: string }
@@ -25,18 +28,23 @@ export const validateColumn = (value: unknown): Column => {
     throw new Error('Column id must be a non-empty string');
   }
 
-  if (typeof value.label !== 'string' || value.label.trim() === '') {
-    throw new Error('Column label must be a non-empty string');
+  if (typeof value.label !== 'string' || value.label.trim() === '' || value.label.trim().length > MAX_COLUMN_LABEL_LENGTH) {
+    throw new Error(`Column label must be 1-${MAX_COLUMN_LABEL_LENGTH} characters`);
   }
 
   if (!isColumnType(value.type)) {
     throw new Error('Column type is invalid');
   }
 
+  if (value.position !== undefined && (!Number.isSafeInteger(value.position) || (value.position as number) < 0)) {
+    throw new Error('Column position must be a non-negative safe integer');
+  }
+
   return {
     id: value.id,
-    label: value.label,
+    label: value.label.trim(),
     type: value.type,
+    position: value.position as number,
   };
 };
 

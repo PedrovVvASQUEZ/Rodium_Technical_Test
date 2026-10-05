@@ -54,6 +54,7 @@ export function ContactGrid({ columns, contacts, onUpdateCell, onDeleteContact, 
     } catch (cause: unknown) {
       setDeleteError(cause instanceof Error ? cause.message : 'La suppression a échoué.');
       deleteFocusRequest.current = { ...deleteFocusRequest.current!, outcome: 'restore' };
+      deleteButtons.current.get(contactId)?.focus();
       setConfirming(null);
     }
   };

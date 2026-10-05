@@ -2,6 +2,7 @@ import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from
 import { ListContactsQueryError } from '../../application/contacts/list-contacts';
 import { ContactNotFoundError, InvalidContactInputError } from '../../domain/contacts/contact-errors';
 import { QueryValidationError } from './query-validation.error';
+import { ColumnConflictError, ColumnNotFoundError, InvalidColumnError } from '../../domain/columns/column-errors';
 
 type ErrorBody = { statusCode: number; code: string; message: string };
 type HttpResponse = { status(code: number): HttpResponse; json(body: ErrorBody): void };
@@ -18,6 +19,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
     if (exception instanceof InvalidContactInputError) {
       return { statusCode: HttpStatus.BAD_REQUEST, code: exception.code, message: exception.message };
     }
+    if (exception instanceof InvalidColumnError) return { statusCode: HttpStatus.BAD_REQUEST, code: exception.code, message: exception.message };
+    if (exception instanceof ColumnNotFoundError) return { statusCode: HttpStatus.NOT_FOUND, code: exception.code, message: exception.message };
+    if (exception instanceof ColumnConflictError) return { statusCode: HttpStatus.CONFLICT, code: exception.code, message: exception.message };
     if (exception instanceof ContactNotFoundError) {
       return { statusCode: HttpStatus.NOT_FOUND, code: exception.code, message: exception.message };
     }

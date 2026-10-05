@@ -4,6 +4,7 @@ import {
   ContactRepository,
   ContactRepositoryQuery,
 } from '../../domain/contacts/contact-repository';
+import { readColumns, type ColumnSource } from '../columns/column-repository';
 
 export type SortDirection = 'asc' | 'desc';
 
@@ -134,11 +135,12 @@ export const validateListContactsQuery = (
 export class ListContacts {
   constructor(
     private readonly contactRepository: ContactRepository,
-    private readonly columns: readonly Column[],
+    private readonly columns: ColumnSource,
   ) {}
 
   async execute(input: ListContactsQueryInput): Promise<ListContactsResult> {
-    const query = validateListContactsQuery(input, this.columns);
+    const columns = await readColumns(this.columns);
+    const query = validateListContactsQuery(input, columns);
     const result = await this.contactRepository.findMany(query);
 
     return {
