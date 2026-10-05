@@ -18,3 +18,17 @@ La commande `/next-step` fournit la procedure standard pour avancer d'une etape 
 ## Etat du projet
 
 Le projet est en phase d'initialisation. Les commandes de lancement et de test seront ajoutees avec le scaffold applicatif.
+
+## Persistance PostgreSQL
+
+Avec Docker et `DATABASE_URL` configure (voir `.env.example`) :
+
+```text
+npm run db:up
+npm run db:migrate
+npm run db:seed
+npm test --workspace @rodium/backend
+npm run test:integration --workspace @rodium/backend
+```
+
+Les tests d'integration utilisent PostgreSQL reel et echouent explicitement si `DATABASE_URL` est absent ou inaccessible. Le seed contient uniquement des donnees synthetiques et peut etre rejoue.

@@ -11,12 +11,13 @@
     "dev:frontend": "npm run dev --workspace @rodium/frontend",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:integration": "DATABASE_URL=postgresql://rodium:rodium_dev_only@localhost:5432/rodium npm run test:integration --workspace @rodium/backend",
     "lint": "npm run typecheck",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
-    "db:migrate": "printf 'Les migrations seront ajoutees avec le modele de donnees.\\n'",
-    "db:seed": "printf 'Le seed sera ajoute avec le modele de donnees.\\n'"
+    "db:migrate": "npm run build --workspace @rodium/backend && node apps/backend/dist/infrastructure/persistence/scripts/migrate.js",
+    "db:seed": "npm run build --workspace @rodium/backend && node apps/backend/dist/infrastructure/persistence/scripts/seed.js"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
