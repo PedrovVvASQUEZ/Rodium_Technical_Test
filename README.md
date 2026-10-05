@@ -29,6 +29,14 @@ BACKEND_PORT=3000
 VITE_API_BASE_URL=http://localhost:3000
 ```
 
+Un raccourci est disponible avec Make :
+
+```bash
+make setup
+```
+
+Puis lance `make dev-backend` et `make dev-frontend` dans deux terminaux. Utilise `make help` pour afficher toutes les commandes.
+
 
 ## PostgreSQL, migrations et seed
 
