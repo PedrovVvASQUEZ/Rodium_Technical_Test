@@ -50,8 +50,15 @@ export const apiClient = {
       return response.items[0];
     } catch (error) { if (error instanceof ApiError) throw error; throw new ApiError('Le contrat du contact est invalide.', 'contract'); }
   },
-  async createContact(values: Readonly<Record<string, string | number>>): Promise<Contact> {
-    try { return validateContact(await post('/contacts', { values })); }
+  async createContact(values: Readonly<Record<string, string | number>>, columns: readonly Column[] = []): Promise<Contact> {
+    const typedValues = columns.length === 0
+      ? values
+      : Object.fromEntries(Object.entries(values).map(([columnId, value]) => {
+        const column = columns.find((candidate) => candidate.id === columnId);
+        if (!column) throw new ApiError('La colonne du contact est inconnue.', 'contract');
+        return [columnId, { type: column.type, value }];
+      }));
+    try { return validateContact(await post('/contacts', { values: typedValues })); }
     catch (error) { if (error instanceof ApiError) throw error; throw new ApiError('Le contrat du contact est invalide.', 'contract'); }
   },
   async deleteContact(contactId: string): Promise<void> {

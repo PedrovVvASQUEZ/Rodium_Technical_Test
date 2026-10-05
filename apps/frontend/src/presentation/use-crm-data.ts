@@ -41,10 +41,10 @@ export function useCrmData(): CrmData {
   const createContact = useCallback(async (values: Readonly<Record<string, string | number>>) => {
     if (mutationLock.current) throw new Error('Une autre mutation est déjà en cours.');
     mutationLock.current = true; setCreateStatus('pending'); setMutationError(null);
-    try { const created = await crmService.createContact(values); setContacts((current) => [created, ...current.filter((contact) => contact.id !== created.id)]); setStatus('ready'); return created; }
+    try { const created = await crmService.createContact(values, columns); setContacts((current) => [created, ...current.filter((contact) => contact.id !== created.id)]); setStatus('ready'); return created; }
     catch (cause: unknown) { setCreateStatus('error'); setMutationError(cause instanceof Error ? cause : new Error('La création a échoué.')); throw cause; }
     finally { mutationLock.current = false; setCreateStatus('idle'); }
-  }, []);
+  }, [columns]);
   const deleteContact = useCallback(async (contactId: string) => {
     if (mutationLock.current) throw new Error('Une autre mutation est déjà en cours.');
     mutationLock.current = true; setDeleteStatus('pending'); setMutationError(null);

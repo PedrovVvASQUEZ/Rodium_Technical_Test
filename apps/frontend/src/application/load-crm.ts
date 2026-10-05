@@ -6,7 +6,7 @@ export const crmService = {
   loadFirstPage(pageSize: number): Promise<CrmPage> { return Promise.all([apiClient.getColumns(), apiClient.getContacts(1, pageSize)]).then(([columns, contacts]) => ({ columns, contacts })); },
   loadContacts(page: number, pageSize: number): Promise<ContactsPage> { return apiClient.getContacts(page, pageSize); },
   updateContactValue(contactId: string, columnId: string, type: ColumnType, value: string | number | null): Promise<Contact> { return apiClient.updateContactValue(contactId, columnId, type, value); },
-  createContact(values: Readonly<Record<string, string | number>>): Promise<Contact> { return apiClient.createContact(values); },
+  createContact(values: Readonly<Record<string, string | number>>, columns?: readonly Column[]): Promise<Contact> { return columns ? apiClient.createContact(values, columns) : apiClient.createContact(values); },
   deleteContact(contactId: string): Promise<void> { return apiClient.deleteContact(contactId); },
   createColumn(input: CreateColumnInput): Promise<Column> { return apiClient.createColumn(input); },
   renameColumn(columnId: string, label: string): Promise<Column> { return apiClient.renameColumn(columnId, label); },

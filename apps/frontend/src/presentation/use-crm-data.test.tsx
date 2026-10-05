@@ -150,7 +150,7 @@ describe('useCrmData', () => {
     await waitFor(() => expect(screen.getByTestId('count').textContent).toBe('2'));
     fireEvent.click(screen.getByRole('button', { name: 'delete' }));
     await waitFor(() => expect(screen.getByTestId('count').textContent).toBe('1'));
-    expect(crmService.createContact).toHaveBeenCalledWith({ name: 'New' });
+    expect(crmService.createContact).toHaveBeenCalledWith({ name: 'New' }, []);
     expect(crmService.deleteContact).toHaveBeenCalledWith('1');
   });
 

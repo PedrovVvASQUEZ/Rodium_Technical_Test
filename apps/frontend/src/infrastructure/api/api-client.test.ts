@@ -42,6 +42,13 @@ describe('apiClient', () => {
     expect(fetch).toHaveBeenCalledWith('http://localhost:3000/contacts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ values: { score: 4 } }) });
   });
 
+  it('adapte les valeurs primitives avec le catalogue des colonnes', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'c-3', values: { name: { type: 'text', value: 'Test Docker' } } }), { status: 201 }));
+    vi.stubGlobal('fetch', fetch);
+    await apiClient.createContact({ name: 'Test Docker' }, [{ id: 'name', label: 'Nom', type: 'text' }]);
+    expect(fetch).toHaveBeenCalledWith('http://localhost:3000/contacts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ values: { name: { type: 'text', value: 'Test Docker' } } }) });
+  });
+
   it('supprime sans parser le corps de réponse', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal('fetch', fetch);
