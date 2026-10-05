@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
+import { Contact } from '../../domain/contacts/contact';
 import { CreateContact } from '../../application/contacts/create-contact';
 import { DeleteContact } from '../../application/contacts/delete-contact';
 import { ListContacts, ListContactsResult } from '../../application/contacts/list-contacts';
@@ -27,7 +28,7 @@ export class ContactsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: unknown): Promise<void> {
+  update(@Param('id') id: string, @Body() body: unknown): Promise<Contact> {
     const input = adaptUpdateContactValue(body);
     return this.updateContactValue.execute({ contactId: id, ...input });
   }

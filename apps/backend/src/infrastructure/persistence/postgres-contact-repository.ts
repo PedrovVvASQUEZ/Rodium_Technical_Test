@@ -11,6 +11,20 @@ import { type Contact } from '../../domain/contacts/contact';
 type ContactRow = { id: string; values: unknown; total: string };
 type StoredValue = { type: string; value: string | number };
 
+const CONTACT_BY_ID = `
+  SELECT c.id::text AS id,
+    COALESCE(jsonb_object_agg(cv.column_id::text,
+      CASE cv.value_type
+        WHEN 'number' THEN jsonb_build_object('type', cv.value_type, 'value', cv.value_number)
+        WHEN 'date' THEN jsonb_build_object('type', cv.value_type, 'value', to_char(cv.value_date, 'YYYY-MM-DD'))
+        ELSE jsonb_build_object('type', cv.value_type, 'value', cv.value_text)
+      END
+    ) FILTER (WHERE cv.column_id IS NOT NULL), '{}'::jsonb) AS values,
+    '1' AS total
+  FROM contacts c LEFT JOIN contact_values cv ON cv.contact_id = c.id
+  WHERE c.id = $1::uuid
+  GROUP BY c.id`;
+
 const SORT_ASC = `
   SELECT c.id::text AS id,
     COALESCE(jsonb_object_agg(cv.column_id::text,
@@ -125,7 +139,7 @@ export class PostgresContactRepository implements ContactRepository {
     }
   }
 
-  async updateValue(contactId: string, columnId: string, value: ContactValue | null): Promise<void> {
+  async updateValue(contactId: string, columnId: string, value: ContactValue | null): Promise<Contact> {
     const column = this.allowedColumns.get(columnId);
     if (!column) throw new InvalidContactInputError(`Unknown column: ${columnId}`);
     if (value !== null && column.type !== value.type) {
@@ -141,7 +155,10 @@ export class PostgresContactRepository implements ContactRepository {
       } else {
         await this.insertValue(client, contactId, column, value);
       }
+      const updated = await client.query<ContactRow>(CONTACT_BY_ID, [contactId]);
+      const mappedContact = this.mapContact(updated.rows[0]);
       await client.query('COMMIT');
+      return mappedContact;
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
