@@ -25,7 +25,7 @@ function validateContactValue(value: unknown): ContactValue | null {
   throw new Error('Contact response contains an invalid value');
 }
 
-function validateContact(value: unknown): Contact {
+export function validateContact(value: unknown): Contact {
   if (!isRecord(value) || typeof value.id !== 'string' || !isRecord(value.values)) throw new Error('Contacts response contains an invalid contact');
   const values = Object.fromEntries(Object.entries(value.values).map(([key, candidate]) => [key, validateContactValue(candidate)]));
   return { id: value.id, values };

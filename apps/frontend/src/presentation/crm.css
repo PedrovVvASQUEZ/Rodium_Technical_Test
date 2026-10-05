@@ -15,4 +15,14 @@
 .cell-status, .cell-error { display: block; margin-top: 4px; font-size: .75rem; }
 .cell-status { color: #526067; } .cell-error { color: #a32929; }
 .state { padding: 48px 0; font-family: ui-sans-serif, system-ui, sans-serif; } .state-error { color: #a32929; } .sentinel { height: 1px; }
+.contact-form { margin: 0 0 28px; padding: 20px; background: #fff; border: 1px solid #d8dee3; font-family: ui-sans-serif, system-ui, sans-serif; }
+.contact-form h2 { margin: 0 0 16px; font-size: 1.2rem; }
+.contact-form-fields { display: flex; flex-wrap: wrap; gap: 12px 16px; margin-bottom: 16px; }
+.contact-form label { display: grid; gap: 5px; min-width: 150px; color: #526067; font-size: .85rem; }
+.contact-form input { padding: 7px 8px; border: 1px solid #aeb9be; font: inherit; }
+.contact-form button, .confirm-dialog button, .contact-grid td button { padding: 7px 10px; border: 1px solid #183f3a; background: #183f3a; color: #fff; cursor: pointer; }
+.contact-form button:disabled, .confirm-dialog button:disabled, .contact-grid td button:disabled { opacity: .55; cursor: wait; }
+.contact-form [role='alert'], .confirm-dialog [role='alert'] { color: #a32929; }
+.confirm-dialog { margin: 18px 0; padding: 18px; border: 2px solid #d1843f; background: #fff; font-family: ui-sans-serif, system-ui, sans-serif; }
+.confirm-dialog button + button { margin-left: 8px; background: #fff; color: #183f3a; }
 @media (max-width: 640px) { .crm-page { padding: 28px 16px; } .crm-header { display: block; } .crm-header p { margin-top: 8px; } }

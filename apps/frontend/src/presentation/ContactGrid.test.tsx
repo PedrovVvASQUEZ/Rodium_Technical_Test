@@ -70,4 +70,30 @@ describe('ContactGrid', () => {
     expect(html).toContain('<td></td>');
     expect(html).not.toContain('>42<');
   });
+
+  it('confirme une suppression et conserve la ligne si elle échoue', async () => {
+    const onDeleteContact = vi.fn().mockRejectedValue(new Error('Echec DELETE'));
+    render(<ContactGrid columns={[]} contacts={[{ id: 'c-1', values: {} }]} onDeleteContact={onDeleteContact} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Echec DELETE'));
+    expect(screen.getByRole('row', { name: /c-1/ })).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Supprimer' }));
+  });
+
+  it('focalise la confirmation puis la ligne voisine après le retrait réel de la ligne', async () => {
+    const onDeleteContact = vi.fn().mockResolvedValue(undefined);
+    const contacts = [{ id: 'c-1', values: {} }, { id: 'c-2', values: {} }];
+    const { rerender } = render(<ContactGrid columns={[]} contacts={contacts} onDeleteContact={onDeleteContact} />);
+    const trigger = screen.getAllByRole('button', { name: 'Supprimer' })[0];
+    fireEvent.click(trigger);
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Confirmer' })));
+    onDeleteContact.mockImplementationOnce(async () => { rerender(<ContactGrid columns={[]} contacts={[contacts[1]]} onDeleteContact={onDeleteContact} />); });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.queryByRole('row', { name: /c-1/ })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Supprimer' }));
+  });
 });

@@ -35,6 +35,20 @@ describe('apiClient', () => {
     await expect(apiClient.updateContactValue('c-1', 'score', 'number', 4)).rejects.toMatchObject({ kind: 'contract' });
   });
 
+  it('crée un contact avec un payload typé et valide sa réponse', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'c-2', values: { score: { type: 'number', value: 4 } } }), { status: 201 }));
+    vi.stubGlobal('fetch', fetch);
+    await expect(apiClient.createContact({ score: 4 })).resolves.toEqual({ id: 'c-2', values: { score: { type: 'number', value: 4 } } });
+    expect(fetch).toHaveBeenCalledWith('http://localhost:3000/contacts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ values: { score: 4 } }) });
+  });
+
+  it('supprime sans parser le corps de réponse', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetch);
+    await expect(apiClient.deleteContact('c/2')).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledWith('http://localhost:3000/contacts/c%2F2', { method: 'DELETE' });
+  });
+
   it.each([
     { page: 0, pageSize: 50, total: 1, totalPages: 1 },
     { page: 1, pageSize: 0, total: 1, totalPages: 1 },
