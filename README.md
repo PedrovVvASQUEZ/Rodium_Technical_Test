@@ -40,7 +40,7 @@ Puis lance `make dev-backend` et `make dev-frontend` dans deux terminaux. Utilis
 
 ## PostgreSQL, migrations et seed
 
-Le fichier `docker-compose.yml` demarre uniquement le service PostgreSQL 16 sur le port `5432` et conserve les donnees dans le volume Docker `rodium_postgres_data`.
+Le fichier `docker-compose.yml` demarre PostgreSQL, les migrations/seed, le backend NestJS et le frontend Nginx. PostgreSQL conserve ses donnees dans le volume Docker `rodium_postgres_data`.
 
 ```bash
 npm run db:up
@@ -50,13 +50,29 @@ npm run db:seed
 
 `db:migrate` compile le backend puis applique, dans l'ordre numerique, les fichiers SQL de `apps/backend/migrations/`. Les migrations deja enregistrees dans `schema_migrations` ne sont pas rejouees.
 
-`db:seed` compile le backend puis insere 500 contacts synthetiques, par lots de 100, a partir des colonnes existantes. Le seed est idempotent : il ne remplace pas les colonnes, les contacts utilisateur ou les valeurs deja modifiees. Il echoue si aucune colonne n'existe.
+`db:seed` compile le backend puis insere 500 contacts synthetiques, par lots de 100, a partir des colonnes existantes. Le seed est idempotent : il ne remplace pas les colonnes, les contacts utilisateur ou les valeurs deja modifiees. Il echoue si aucune colonne n'existe. `make db-down` arrete uniquement PostgreSQL ; `make compose-down` arrete toute la stack.
 
 Pour arreter PostgreSQL :
 
 ```bash
 npm run db:down
 ```
+
+### Deploiement Docker complet
+
+Pour construire et lancer toute la stack :
+
+```bash
+make compose-up
+```
+
+L'application est alors disponible sur [http://localhost:8080](http://localhost:8080). Le backend est aussi accessible sur [http://localhost:3000](http://localhost:3000). Pour arreter les conteneurs :
+
+```bash
+make compose-down
+```
+
+Dans un Codespace, la stack utilise `host.docker.internal` pour joindre les ports publies de PostgreSQL et du backend, car certains runtimes distants filtrent le trafic entre conteneurs. Sur Docker Desktop ou Docker Engine standard, cette configuration reste compatible avec le host-gateway Docker.
 
 ## Lancement
 
@@ -123,7 +139,7 @@ Les repositories PostgreSQL implementent les ports applicatifs. Les regles de va
 
 ## Limites connues
 
-- le compose Docker ne fournit pas de services backend ou frontend;
+- le compose Docker utilise des identifiants et ports de developpement, pas une configuration de production;
 - le PDF du sujet est disponible localement mais n'est pas versionne;
 - le tri et le filtre ne disposent pas encore de controles dans l'interface;
 - aucune configuration de production, authentification ou gestion de comptes n'est presente dans le code verifie;
@@ -132,9 +148,8 @@ Les repositories PostgreSQL implementent les ports applicatifs. Les regles de va
 ## Ameliorations prioritaires
 
 1. Ajouter les controles UI de tri et de filtre et les relier aux requetes paginees serveur.
-2. Ajouter un parcours Docker complet pour lancer PostgreSQL, le backend et le frontend ensemble.
-3. Ajouter une verification end-to-end du demarrage et de la grille avec 500 contacts.
-4. Preciser les prerequis de version Node.js et preparer la configuration de production.
+2. Ajouter une verification end-to-end automatisee de la grille avec 500 contacts.
+3. Preciser les prerequis de version Node.js et preparer la configuration de production.
 
 ## Utilisation de Claude Code et des agents
 

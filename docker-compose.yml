@@ -15,5 +15,52 @@ services:
       timeout: 5s
       retries: 10
 
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://rodium:rodium_dev_only@host.docker.internal:5432/rodium
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["sh", "-c", "node apps/backend/dist/infrastructure/persistence/scripts/migrate.js && node apps/backend/dist/infrastructure/persistence/scripts/seed.js"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://rodium:rodium_dev_only@host.docker.internal:5432/rodium
+      BACKEND_PORT: 3000
+      FRONTEND_ORIGIN: http://localhost:8080
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', response => process.exit(response.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    ports:
+      - "8080:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      backend:
+        condition: service_healthy
+
 volumes:
   rodium_postgres_data:

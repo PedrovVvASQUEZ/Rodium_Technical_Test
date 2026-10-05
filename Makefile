@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install setup db-up db-down db-migrate db-seed dev-backend dev-frontend test test-integration typecheck build check
+.PHONY: help install setup db-up db-down db-migrate db-seed compose-up compose-down dev-backend dev-frontend test test-integration typecheck build check
 
 help:
 	@printf '%s\n' 'Commandes disponibles :' \
@@ -9,6 +9,8 @@ help:
 		'  make db-down         Arrete PostgreSQL' \
 		'  make db-migrate      Applique les migrations' \
 		'  make db-seed         Ajoute les 500 contacts de demonstration' \
+		'  make compose-up      Construit et lance toute la stack Docker' \
+		'  make compose-down    Arrete toute la stack Docker' \
 		'  make dev-backend     Lance le backend NestJS' \
 		'  make dev-frontend    Lance le frontend Vite' \
 		'  make test            Lance les tests unitaires' \
@@ -26,13 +28,19 @@ db-up:
 	npm run db:up
 
 db-down:
-	npm run db:down
+	docker compose stop db
 
 db-migrate:
 	npm run db:migrate
 
 db-seed:
 	npm run db:seed
+
+compose-up:
+	docker compose up --build -d
+
+compose-down:
+	docker compose down
 
 dev-backend:
 	npm run dev:backend
