@@ -1,5 +1,6 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import { ListContactsQueryError } from '../../application/contacts/list-contacts';
+import { ContactNotFoundError, InvalidContactInputError } from '../../domain/contacts/contact-errors';
 import { QueryValidationError } from './query-validation.error';
 
 type ErrorBody = { statusCode: number; code: string; message: string };
@@ -14,6 +15,12 @@ export class ApiExceptionFilter implements ExceptionFilter {
   }
 
   private toBody(exception: unknown): ErrorBody {
+    if (exception instanceof InvalidContactInputError) {
+      return { statusCode: HttpStatus.BAD_REQUEST, code: exception.code, message: exception.message };
+    }
+    if (exception instanceof ContactNotFoundError) {
+      return { statusCode: HttpStatus.NOT_FOUND, code: exception.code, message: exception.message };
+    }
     if (exception instanceof QueryValidationError || exception instanceof ListContactsQueryError) {
       return { statusCode: HttpStatus.BAD_REQUEST, code: 'INVALID_QUERY', message: exception.message };
     }

@@ -17,4 +17,7 @@ export type ContactRepositoryResult = {
 
 export interface ContactRepository {
   findMany(query: ContactRepositoryQuery): Promise<ContactRepositoryResult>;
+  create(values: Readonly<Record<string, import('../columns/column').ContactValue>>): Promise<import('./contact').Contact>;
+  updateValue(contactId: string, columnId: string, value: import('../columns/column').ContactValue | null): Promise<void>;
+  deleteById(contactId: string): Promise<void>;
 }

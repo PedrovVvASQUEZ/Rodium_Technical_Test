@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Pool } from 'pg';
 import { seedDatabase } from './scripts/seed';
 import { migrateDatabase } from './scripts/migrate';
@@ -19,8 +19,12 @@ describe('PostgreSQL repositories', () => {
     try {
       await check.query('SELECT 1');
       await migrateDatabase();
-      await seedDatabase();
       pool = createPostgresPool();
+      await pool.query(
+        `INSERT INTO columns (id, label, type, position)
+         VALUES ('55555555-5555-4555-8555-555555555555', 'Phone', 'phone', 4)
+         ON CONFLICT (id) DO UPDATE SET label = EXCLUDED.label, type = EXCLUDED.type, position = EXCLUDED.position`,
+      );
       const columns = await new PostgresColumnRepository(pool).findAll();
       contacts = new PostgresContactRepository(pool, columns);
     } catch (error) {
@@ -30,6 +34,12 @@ describe('PostgreSQL repositories', () => {
     } finally {
       await check.end();
     }
+  });
+
+  beforeEach(async () => {
+    await pool.query('DELETE FROM contact_values');
+    await pool.query('DELETE FROM contacts');
+    await seedDatabase();
   });
 
   afterAll(async () => {
@@ -103,5 +113,33 @@ describe('PostgreSQL repositories', () => {
 
     expect(result.total).toBe(1);
     expect(result.items[0].values[joined!.id]).toEqual({ type: 'date', value: '2024-06-20' });
+  });
+
+  it('creates contacts and updates text, number, date, phone and null values', async () => {
+    const created = await contacts.create({});
+    expect(created.id).toMatch(/^[0-9a-f-]{36}$/);
+    const columns = await new PostgresColumnRepository(pool).findAll();
+    const byType = (type: string) => columns.find((column) => column.type === type)!.id;
+    const updates = [
+      [byType('text'), { type: 'text', value: 'Updated' }],
+      [byType('number'), { type: 'number', value: 12.5 }],
+      [byType('date'), { type: 'date', value: '2025-02-03' }],
+      [byType('phone'), { type: 'phone', value: '+33123456789' }],
+    ] as const;
+    for (const [columnId, value] of updates) await contacts.updateValue(created.id, columnId, value);
+    await contacts.updateValue(created.id, byType('text'), null);
+    const result = await contacts.findMany({ page: 1, pageSize: 10, sortDirection: 'asc' });
+    const updated = result.items.find((item) => item.id === created.id)!;
+    expect(updated.values[byType('text')]).toBeUndefined();
+    expect(updated.values[byType('number')]).toEqual({ type: 'number', value: 12.5 });
+    expect(updated.values[byType('date')]).toEqual({ type: 'date', value: '2025-02-03' });
+    expect(updated.values[byType('phone')]).toEqual({ type: 'phone', value: '+33123456789' });
+  });
+
+  it('deletes contacts and reports absent contacts', async () => {
+    const created = await contacts.create({});
+    await contacts.deleteById(created.id);
+    await expect(contacts.deleteById(created.id)).rejects.toThrow('Contact not found');
+    await expect(contacts.updateValue('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', '55555555-5555-4555-8555-555555555555', null)).rejects.toThrow('Contact not found');
   });
 });

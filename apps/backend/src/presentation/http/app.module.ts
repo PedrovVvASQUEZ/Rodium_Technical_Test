@@ -3,6 +3,9 @@ import { Pool } from 'pg';
 import { ListColumns } from '../../application/columns/list-columns';
 import { ColumnRepository } from '../../application/columns/column-repository';
 import { ListContacts } from '../../application/contacts/list-contacts';
+import { CreateContact } from '../../application/contacts/create-contact';
+import { DeleteContact } from '../../application/contacts/delete-contact';
+import { UpdateContactValue } from '../../application/contacts/update-contact-value';
 import { ContactRepository } from '../../domain/contacts/contact-repository';
 import { createPostgresPool } from '../../infrastructure/persistence/postgres-client';
 import { PostgresColumnRepository } from '../../infrastructure/persistence/postgres-column-repository';
@@ -11,7 +14,10 @@ import { PostgresPoolLifecycle } from '../../infrastructure/persistence/postgres
 import { ColumnsController } from './columns.controller';
 import { ContactsController } from './contacts.controller';
 import { HealthController } from './health.controller';
-import { COLUMN_REPOSITORY, CONTACT_REPOSITORY, DATABASE_POOL, LIST_COLUMNS, LIST_CONTACTS } from './provider-tokens';
+import {
+  COLUMN_REPOSITORY, CONTACT_REPOSITORY, CREATE_CONTACT, DATABASE_POOL, DELETE_CONTACT,
+  LIST_COLUMNS, LIST_CONTACTS, UPDATE_CONTACT_VALUE,
+} from './provider-tokens';
 
 @Module({
   controllers: [HealthController, ColumnsController, ContactsController],
@@ -40,6 +46,23 @@ import { COLUMN_REPOSITORY, CONTACT_REPOSITORY, DATABASE_POOL, LIST_COLUMNS, LIS
       useFactory: (repository: ContactRepository, columnRepository: ColumnRepository) =>
         columnRepository.findAll().then((columns) => new ListContacts(repository, columns)),
       inject: [CONTACT_REPOSITORY, COLUMN_REPOSITORY],
+    },
+    {
+      provide: CREATE_CONTACT,
+      useFactory: (repository: ContactRepository, columnRepository: ColumnRepository) =>
+        columnRepository.findAll().then((columns) => new CreateContact(repository, columns)),
+      inject: [CONTACT_REPOSITORY, COLUMN_REPOSITORY],
+    },
+    {
+      provide: UPDATE_CONTACT_VALUE,
+      useFactory: (repository: ContactRepository, columnRepository: ColumnRepository) =>
+        columnRepository.findAll().then((columns) => new UpdateContactValue(repository, columns)),
+      inject: [CONTACT_REPOSITORY, COLUMN_REPOSITORY],
+    },
+    {
+      provide: DELETE_CONTACT,
+      useFactory: (repository: ContactRepository) => new DeleteContact(repository),
+      inject: [CONTACT_REPOSITORY],
     },
     {
       provide: PostgresPoolLifecycle,

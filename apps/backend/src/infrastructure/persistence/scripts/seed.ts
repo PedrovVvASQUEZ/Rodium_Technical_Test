@@ -27,6 +27,7 @@ export const seedDatabase = async (): Promise<void> => {
         );
       }
       for (const [id, name, company, score, joined] of contacts) {
+        await client.query('DELETE FROM contact_values WHERE contact_id = $1', [id]);
         await client.query('INSERT INTO contacts (id) VALUES ($1) ON CONFLICT (id) DO NOTHING', [id]);
         await client.query(
           `INSERT INTO contact_values (contact_id, column_id, value_type, value_text)

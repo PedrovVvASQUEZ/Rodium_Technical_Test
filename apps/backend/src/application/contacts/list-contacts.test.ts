@@ -67,7 +67,12 @@ describe('ListContacts', () => {
       items: [{ id: 'contact-1', values: {} }],
       total: 51,
     });
-    const listContacts = new ListContacts({ findMany }, columns);
+    const listContacts = new ListContacts({
+      findMany,
+      create: vi.fn(),
+      updateValue: vi.fn(),
+      deleteById: vi.fn(),
+    }, columns);
 
     await expect(
       listContacts.execute({ page: 2, pageSize: 25, filterBy: 'name', filterValue: 'ali' }),

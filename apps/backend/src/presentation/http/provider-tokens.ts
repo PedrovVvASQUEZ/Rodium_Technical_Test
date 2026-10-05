@@ -3,3 +3,6 @@ export const COLUMN_REPOSITORY = Symbol('COLUMN_REPOSITORY');
 export const CONTACT_REPOSITORY = Symbol('CONTACT_REPOSITORY');
 export const LIST_COLUMNS = Symbol('LIST_COLUMNS');
 export const LIST_CONTACTS = Symbol('LIST_CONTACTS');
+export const CREATE_CONTACT = Symbol('CREATE_CONTACT');
+export const UPDATE_CONTACT_VALUE = Symbol('UPDATE_CONTACT_VALUE');
+export const DELETE_CONTACT = Symbol('DELETE_CONTACT');

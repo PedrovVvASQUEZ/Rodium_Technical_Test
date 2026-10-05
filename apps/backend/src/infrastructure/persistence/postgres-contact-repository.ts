@@ -1,5 +1,6 @@
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 import { type Column, validateContactValue, type ContactValue } from '../../domain/columns/column';
+import { ContactNotFoundError, InvalidContactInputError } from '../../domain/contacts/contact-errors';
 import {
   type ContactRepository,
   type ContactRepositoryQuery,
@@ -100,6 +101,93 @@ export class PostgresContactRepository implements ContactRepository {
       items: result.rows.map((row) => this.mapContact(row)),
       total: result.rows.length === 0 ? 0 : Number(result.rows[0].total),
     };
+  }
+
+  async create(values: Readonly<Record<string, ContactValue>>): Promise<Contact> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query<{ id: string }>('INSERT INTO contacts DEFAULT VALUES RETURNING id::text AS id');
+      const id = result.rows[0].id;
+      for (const [columnId, value] of Object.entries(values)) {
+        const column = this.allowedColumns.get(columnId);
+        if (!column) throw new InvalidContactInputError(`Unknown column: ${columnId}`);
+        if (column.type !== value.type) throw new InvalidContactInputError(`Value type does not match column '${columnId}'`);
+        await this.insertValue(client, id, column, value);
+      }
+      await client.query('COMMIT');
+      return { id, values };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async updateValue(contactId: string, columnId: string, value: ContactValue | null): Promise<void> {
+    const column = this.allowedColumns.get(columnId);
+    if (!column) throw new InvalidContactInputError(`Unknown column: ${columnId}`);
+    if (value !== null && column.type !== value.type) {
+      throw new InvalidContactInputError(`Value type does not match column '${columnId}'`);
+    }
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const contact = await client.query('SELECT id FROM contacts WHERE id = $1::uuid FOR UPDATE', [contactId]);
+      if (contact.rowCount !== 1) throw new ContactNotFoundError(contactId);
+      if (value === null) {
+        await client.query('DELETE FROM contact_values WHERE contact_id = $1::uuid AND column_id = $2::uuid', [contactId, columnId]);
+      } else {
+        await this.insertValue(client, contactId, column, value);
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async deleteById(contactId: string): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query('DELETE FROM contacts WHERE id = $1::uuid', [contactId]);
+      if (result.rowCount !== 1) throw new ContactNotFoundError(contactId);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  private insertValue(client: PoolClient, contactId: string, column: Column, value: ContactValue): Promise<unknown> {
+    if (value.type === 'number') {
+      return client.query(
+        `INSERT INTO contact_values (contact_id, column_id, value_type, value_number)
+         VALUES ($1::uuid, $2::uuid, 'number', $3)
+         ON CONFLICT (contact_id, column_id) DO UPDATE SET value_type = EXCLUDED.value_type, value_number = EXCLUDED.value_number, value_text = NULL, value_date = NULL`,
+        [contactId, column.id, value.value],
+      );
+    }
+    if (value.type === 'date') {
+      return client.query(
+        `INSERT INTO contact_values (contact_id, column_id, value_type, value_date)
+         VALUES ($1::uuid, $2::uuid, 'date', $3::date)
+         ON CONFLICT (contact_id, column_id) DO UPDATE SET value_type = EXCLUDED.value_type, value_date = EXCLUDED.value_date, value_text = NULL, value_number = NULL`,
+        [contactId, column.id, value.value],
+      );
+    }
+    return client.query(
+      `INSERT INTO contact_values (contact_id, column_id, value_type, value_text)
+       VALUES ($1::uuid, $2::uuid, $3::column_type, $4)
+       ON CONFLICT (contact_id, column_id) DO UPDATE SET value_type = EXCLUDED.value_type, value_text = EXCLUDED.value_text, value_number = NULL, value_date = NULL`,
+      [contactId, column.id, value.type, value.value],
+    );
   }
 
   private mapContact(row: ContactRow): Contact {
