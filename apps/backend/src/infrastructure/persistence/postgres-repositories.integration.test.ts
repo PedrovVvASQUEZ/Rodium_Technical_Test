@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Pool } from 'pg';
-import { seedDatabase } from './scripts/seed';
+import { seedContactId, seedDatabase } from './scripts/seed';
 import { migrateDatabase } from './scripts/migrate';
 import { createPostgresPool } from './postgres-client';
 import { PostgresColumnRepository } from './postgres-column-repository';
@@ -23,8 +23,13 @@ describe('PostgreSQL repositories', () => {
       pool = createPostgresPool();
       await pool.query(
         `INSERT INTO columns (id, label, type, position)
-         VALUES ('55555555-5555-4555-8555-555555555555', 'Phone', 'phone', 4)
-         ON CONFLICT (id) DO UPDATE SET label = EXCLUDED.label, type = EXCLUDED.type, position = EXCLUDED.position`,
+         VALUES
+         ('11111111-1111-4111-8111-111111111111', 'Name', 'text', 0),
+         ('22222222-2222-4222-8222-222222222222', 'Company', 'text', 1),
+         ('33333333-3333-4333-8333-333333333333', 'Score', 'number', 2),
+         ('44444444-4444-4444-8444-444444444444', 'Joined', 'date', 3),
+        ('55555555-5555-4555-8555-555555555555', 'Phone', 'phone', 4)
+         ON CONFLICT (id) DO NOTHING`,
       );
       columnsRepository = new PostgresColumnRepository(pool);
       contacts = new PostgresContactRepository(pool, columnsRepository);
@@ -126,6 +131,48 @@ describe('PostgreSQL repositories', () => {
     expect(result.items[0].values[joined!.id]).toEqual({ type: 'date', value: '2024-06-20' });
   });
 
+  it('seeds 500 deterministic contacts idempotently without changing columns or user data', async () => {
+    const columnsBefore = await columnsRepository.findAll();
+    const firstContact = seedContactId(1);
+    const name = columnsBefore.find((column) => column.label === 'Name')!;
+    await pool.query(
+      'UPDATE contact_values SET value_text = $1 WHERE contact_id = $2 AND column_id = $3',
+      ['Edited synthetic name', firstContact, name.id],
+    );
+    const userContact = '99999999-9999-4999-8999-999999999999';
+    await pool.query('INSERT INTO contacts (id) VALUES ($1) ON CONFLICT (id) DO NOTHING', [userContact]);
+
+    await seedDatabase();
+
+    const contactCount = await pool.query('SELECT count(*)::int AS count FROM contacts');
+    const valueCount = await pool.query('SELECT count(*)::int AS count FROM contact_values');
+    const seededIds = await pool.query<{ id: string }>(
+      "SELECT id::text FROM contacts WHERE id::text LIKE '00000000-0000-4000-8000-%' ORDER BY id",
+    );
+    const columnsAfterFirstSeed = await columnsRepository.findAll();
+    expect(contactCount.rows[0].count).toBe(501);
+    expect(valueCount.rows[0].count).toBe(2500);
+    expect(seededIds.rows.map((row) => row.id)).toEqual(
+      Array.from({ length: 500 }, (_, index) => seedContactId(index + 1)),
+    );
+    expect(columnsAfterFirstSeed).toEqual(columnsBefore);
+    expect((await pool.query(
+      'SELECT value_text FROM contact_values WHERE contact_id = $1 AND column_id = $2',
+      [firstContact, name.id],
+    )).rows[0].value_text).toBe('Edited synthetic name');
+    expect((await pool.query('SELECT 1 FROM contacts WHERE id = $1', [userContact])).rowCount).toBe(1);
+
+    await seedDatabase();
+
+    expect((await pool.query('SELECT count(*)::int AS count FROM contacts')).rows[0].count).toBe(501);
+    expect((await pool.query('SELECT count(*)::int AS count FROM contact_values')).rows[0].count).toBe(2500);
+    expect(await columnsRepository.findAll()).toEqual(columnsBefore);
+    expect((await pool.query(
+      'SELECT value_text FROM contact_values WHERE contact_id = $1 AND column_id = $2',
+      [firstContact, name.id],
+    )).rows[0].value_text).toBe('Edited synthetic name');
+  });
+
   it('creates contacts and updates text, number, date, phone and null values', async () => {
     const created = await contacts.create({});
     expect(created.id).toMatch(/^[0-9a-f-]{36}$/);
@@ -143,7 +190,7 @@ describe('PostgreSQL repositories', () => {
     }
     const cleared = await contacts.updateValue(created.id, byType('text'), null);
     expect(cleared.values[byType('text')]).toBeUndefined();
-    const result = await contacts.findMany({ page: 1, pageSize: 10, sortDirection: 'asc' });
+    const result = await contacts.findMany({ page: 1, pageSize: 600, sortDirection: 'asc' });
     const updated = result.items.find((item) => item.id === created.id)!;
     expect(updated.values[byType('text')]).toBeUndefined();
     expect(updated.values[byType('number')]).toEqual({ type: 'number', value: 12.5 });
@@ -182,7 +229,7 @@ describe('PostgreSQL repositories', () => {
     const dynamic = await columnsRepository.create({ label: 'Dynamic', type: 'text', position: 1 });
     try {
       const seededNameColumn = (await columnsRepository.findAll()).find((column) => column.label === 'Name')!;
-      const seededContact = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+      const seededContact = seedContactId(1);
       await pool.query(
         `UPDATE contact_values SET value_text = $1
          WHERE contact_id = $2 AND column_id = $3`,

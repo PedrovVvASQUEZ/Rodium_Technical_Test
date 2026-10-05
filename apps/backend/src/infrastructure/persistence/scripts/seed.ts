@@ -1,18 +1,56 @@
 import { createPostgresPool } from '../postgres-client';
 
-const columns = [
-  ['11111111-1111-4111-8111-111111111111', 'Name', 'text', 0],
-  ['22222222-2222-4222-8222-222222222222', 'Company', 'text', 1],
-  ['33333333-3333-4333-8333-333333333333', 'Score', 'number', 2],
-  ['44444444-4444-4444-8444-444444444444', 'Joined', 'date', 3],
+const CONTACT_COUNT = 500;
+const BATCH_SIZE = 100;
+const LEGACY_CONTACTS = [
+  ['Aster One', 'Northwind Lab', 82, '2024-01-15'],
+  ['Birch Two', 'Cedar Works', 67, '2024-03-02'],
+  ['Cobalt Three', 'Northwind Lab', 100, '2024-06-20'],
+  ['Dune Four', 'Maple Studio', 74, '2024-09-11'],
 ] as const;
 
-const contacts = [
-  ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Aster One', 'Northwind Lab', 82, '2024-01-15'],
-  ['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'Birch Two', 'Cedar Works', 67, '2024-03-02'],
-  ['cccccccc-cccc-4ccc-8ccc-cccccccccccc', 'Cobalt Three', 'Northwind Lab', 100, '2024-06-20'],
-  ['dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'Dune Four', 'Maple Studio', 74, '2024-09-11'],
-] as const;
+type SeedColumn = { id: string; type: 'text' | 'number' | 'date' | 'phone'; position: number };
+
+export const seedContactId = (index: number): string =>
+  `00000000-0000-4000-8000-${index.toString(16).padStart(12, '0')}`;
+
+const valueFor = (column: SeedColumn, index: number): string | number => {
+  const legacy = LEGACY_CONTACTS[index - 1];
+  if (column.id === '11111111-1111-4111-8111-111111111111' && legacy) return legacy[0];
+  if (column.id === '22222222-2222-4222-8222-222222222222' && legacy) return legacy[1];
+  if (column.id === '33333333-3333-4333-8333-333333333333' && legacy) return legacy[2];
+  if (column.id === '44444444-4444-4444-8444-444444444444' && legacy) return legacy[3];
+  if (column.type === 'text') return `Synthetic contact ${index}`;
+  if (column.type === 'number') return legacy?.[2] ?? index + 100;
+  if (column.type === 'phone') return `+3310000${index.toString().padStart(4, '0')}`;
+  return `2025-${String(((index - 1) % 12) + 1).padStart(2, '0')}-${String(((index - 1) % 28) + 1).padStart(2, '0')}`;
+};
+
+const insertValues = async (
+  client: { query: (text: string, values?: readonly unknown[]) => Promise<unknown> },
+  columns: readonly SeedColumn[],
+  indexes: readonly number[],
+  type: SeedColumn['type'],
+): Promise<void> => {
+  const typedColumns = columns.filter((column) => column.type === type);
+  if (typedColumns.length === 0) return;
+  const rows: string[] = [];
+  const parameters: unknown[] = [];
+  for (const index of indexes) {
+    for (const column of typedColumns) {
+      const offset = parameters.length;
+      const value = valueFor(column, index);
+      rows.push(`($${offset + 1}, $${offset + 2}, '${type}', $${offset + 3})`);
+      parameters.push(seedContactId(index), column.id, value);
+    }
+  }
+  await client.query(
+    `INSERT INTO contact_values (contact_id, column_id, value_type, ${type === 'number' ? 'value_number' : type === 'date' ? 'value_date' : 'value_text'})
+     VALUES ${rows.join(', ')}
+     ON CONFLICT (contact_id, column_id) DO NOTHING`,
+    parameters,
+  );
+};
 
 export const seedDatabase = async (): Promise<void> => {
   const pool = createPostgresPool();
@@ -20,34 +58,26 @@ export const seedDatabase = async (): Promise<void> => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      for (const [id, label, type] of columns) {
-        await client.query(
-          `INSERT INTO columns (id, label, type, position)
-           VALUES ($1, $2, $3, COALESCE((SELECT MAX(position) + 1 FROM columns), 0))
-           ON CONFLICT DO NOTHING`,
-          [id, label, type],
-        );
+      const result = await client.query<SeedColumn>(
+        'SELECT id::text, type::text, position FROM columns ORDER BY position ASC, id ASC',
+      );
+      const existingColumns = result.rows;
+      if (existingColumns.length === 0) {
+        throw new Error('Cannot seed contacts because no columns exist');
       }
-      for (const [id, name, company, score, joined] of contacts) {
-        await client.query('INSERT INTO contacts (id) VALUES ($1) ON CONFLICT (id) DO NOTHING', [id]);
-        await client.query(
-          `INSERT INTO contact_values (contact_id, column_id, value_type, value_text)
-           VALUES ($1, $2, 'text', $3), ($1, $4, 'text', $5)
-           ON CONFLICT (contact_id, column_id) DO NOTHING`,
-          [id, columns[0][0], name, columns[1][0], company],
+      for (let start = 1; start <= CONTACT_COUNT; start += BATCH_SIZE) {
+        const indexes = Array.from(
+          { length: Math.min(BATCH_SIZE, CONTACT_COUNT - start + 1) },
+          (_, offset) => start + offset,
         );
         await client.query(
-          `INSERT INTO contact_values (contact_id, column_id, value_type, value_number)
-           VALUES ($1, $2, 'number', $3)
-           ON CONFLICT (contact_id, column_id) DO NOTHING`,
-          [id, columns[2][0], score],
+          `INSERT INTO contacts (id) VALUES ${indexes.map((_, index) => `($${index + 1})`).join(', ')}
+           ON CONFLICT (id) DO NOTHING`,
+          indexes.map(seedContactId),
         );
-        await client.query(
-          `INSERT INTO contact_values (contact_id, column_id, value_type, value_date)
-           VALUES ($1, $2, 'date', $3)
-           ON CONFLICT (contact_id, column_id) DO NOTHING`,
-          [id, columns[3][0], joined],
-        );
+        for (const type of ['text', 'number', 'date', 'phone'] as const) {
+          await insertValues(client, existingColumns, indexes, type);
+        }
       }
       await client.query('COMMIT');
     } catch (error) {
