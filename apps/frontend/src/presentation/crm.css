@@ -1,0 +1,13 @@
+:root { color: #17202a; background: #f4f6f8; font-family: Georgia, 'Times New Roman', serif; }
+* { box-sizing: border-box; } body { margin: 0; }
+.crm-page { min-height: 100vh; padding: 48px clamp(20px, 5vw, 72px); }
+.crm-header { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 28px; }
+.crm-header h1 { margin: 0; font-size: clamp(2rem, 5vw, 4rem); letter-spacing: 0; }
+.crm-header p { margin: 0; color: #5c6870; font-family: ui-sans-serif, system-ui, sans-serif; }
+.grid-scroll { overflow-x: auto; background: #fff; border: 1px solid #d8dee3; box-shadow: 8px 8px 0 #dbe6e2; }
+.contact-grid { width: 100%; min-width: 720px; border-collapse: collapse; text-align: left; font-family: ui-sans-serif, system-ui, sans-serif; }
+.contact-grid th, .contact-grid td { padding: 14px 16px; border-bottom: 1px solid #e7ebed; white-space: nowrap; }
+.contact-grid thead th { background: #183f3a; color: #fff; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
+.contact-grid tbody th { color: #526067; font-weight: 600; } .contact-grid tbody tr:hover { background: #f0f6f3; }
+.state { padding: 48px 0; font-family: ui-sans-serif, system-ui, sans-serif; } .state-error { color: #a32929; } .sentinel { height: 1px; }
+@media (max-width: 640px) { .crm-page { padding: 28px 16px; } .crm-header { display: block; } .crm-header p { margin-top: 8px; } }
