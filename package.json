@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "dev": "printf 'Lance npm run dev:backend et npm run dev:frontend dans deux terminaux.\\n'",
-    "dev:backend": "npm run start:dev --workspace @rodium/backend",
+    "dev:backend": "DATABASE_URL=postgresql://rodium:rodium_dev_only@localhost:5432/rodium npm run start:dev --workspace @rodium/backend",
     "dev:frontend": "npm run dev --workspace @rodium/frontend",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
